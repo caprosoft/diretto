@@ -1,0 +1,28 @@
+[project]
+name = "diretto-crawler"
+version = "0.1.0"
+description = "Crawler per Diretto - ricerca annunci aziendali diretti"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx[http2]>=0.27",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.2",
+    "apscheduler>=3.10",
+    "asyncpg>=0.29",
+    "pyyaml>=6.0",
+    "python-dateutil>=2.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["crawler"]
