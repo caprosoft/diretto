@@ -1,0 +1,52 @@
+services:
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: diretto
+      POSTGRES_USER: diretto
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./data/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U diretto"]
+      interval: 10s
+      retries: 5
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://diretto:${DB_PASSWORD}@db/diretto
+      ALLOWED_ORIGINS: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  crawler:
+    build: ./crawler
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://diretto:${DB_PASSWORD}@db/diretto
+      CRAWL_INTERVAL_HOURS: ${CRAWL_INTERVAL_HOURS:-24}
+      HEADLESS_ENABLED: ${HEADLESS_ENABLED:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
