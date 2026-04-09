@@ -1,3 +1,5 @@
+> 🚧 Lavori in corso! Questo progetto è attualmente in fase alpha — alcune cose potrebbero rompersi, cambiare o scomparire.
+
 # Diretto
 
 > Cerca lavoro, non inserzionisti.
