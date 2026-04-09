@@ -1,0 +1,38 @@
+# Lista aziende dirette indicizzate da Diretto
+# Per aggiungere un'azienda: apri una Pull Request
+# Criteri: deve essere l'azienda stessa, non un'agenzia
+
+- name: Basecamp
+  careers_url: https://basecamp.com/jobs
+  type: static
+  locale: en
+  country: US
+  tags: [software, remote, saas]
+
+- name: Proton AG
+  careers_url: https://proton.me/careers
+  type: static
+  locale: en
+  country: CH
+  tags: [privacy, software, encryption]
+
+- name: Nextcloud GmbH
+  careers_url: https://nextcloud.com/jobs
+  type: static
+  locale: en
+  country: DE
+  tags: [open-source, software, self-hosted]
+
+- name: Mullvad VPN
+  careers_url: https://mullvad.net/en/jobs
+  type: static
+  locale: en
+  country: SE
+  tags: [privacy, vpn, software]
+
+- name: Wikimedia Foundation
+  careers_url: https://wikimedia.org/wiki/Wikimedia_Foundation/Jobs
+  type: static
+  locale: en
+  country: US
+  tags: [non-profit, software, open-source]

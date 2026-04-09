@@ -1,0 +1,33 @@
+# Domini bloccati: agenzie, aggregatori, piattaforme terze
+# Aggiungere qui qualsiasi dominio che non sia un'azienda diretta
+
+domains:
+  - adecco.it
+  - adecco.com
+  - manpower.it
+  - manpower.com
+  - randstad.it
+  - randstad.com
+  - hays.it
+  - hays.com
+  - michaelpage.it
+  - linkedin.com
+  - indeed.com
+  - infojobs.net
+  - monster.it
+  - glassdoor.com
+  - jobrapido.com
+  - subito.it
+  - bakeca.it
+
+keywords:
+  - "agenzia per il lavoro"
+  - "agenzia di somministrazione"
+  - "per conto di un nostro cliente"
+  - "nostra azienda cliente"
+  - "realtà nostra cliente"
+  - "staffing agency"
+  - "recruitment agency"
+  - "on behalf of our client"
+  - "we are recruiting for"
+  - "our client is seeking"
