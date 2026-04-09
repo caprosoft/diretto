@@ -27,7 +27,3 @@ Apri http://localhost:3000
 ## Licenza
 
 GNU Affero General Public License v3.0 — vedi [LICENSE](LICENSE)
-
-## Sito ufficiale
-
-https://diretto.org
