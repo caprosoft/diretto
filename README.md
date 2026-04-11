@@ -87,11 +87,3 @@ La lista completa delle aziende indicizzate è pubblica e versionata nel repo:
 Per ogni annuncio mostrato nel frontend è sempre visibile:
 - il **dominio sorgente** (es. `careers.basecamp.com`)
 - il **link diretto** all'annuncio originale sull'azienda
-
-### Aggiungere un'azienda
-
-Se vuoi proporre una nuova azienda da indicizzare, apri una Pull Request
-che modifica `data/seeds/companies.yaml` seguendo il formato esistente.
-
-Criteri di accettazione: deve essere un'azienda diretta (non un'agenzia),
-con una pagina careers propria e attiva.
