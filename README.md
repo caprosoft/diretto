@@ -42,7 +42,7 @@ GNU Affero General Public License v3.0 — vedi [LICENSE](LICENSE)
 ### Avvio
 
 ```bash
-git clone https://github.com/TUO_USERNAME/diretto.git
+git clone https://github.com/caprosoft/diretto.git
 cd diretto
 cp .env.example .env      # imposta DB_PASSWORD
 docker compose up -d
