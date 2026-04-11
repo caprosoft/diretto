@@ -15,21 +15,6 @@ Solo annunci pubblicati direttamente dalle aziende sul loro sito.
 - ❤️ Preferiti e tracker candidature locali (localStorage)
 - 🐳 Self-hostabile con un comando
 
-## Avvio rapido (self-hosting)
-
-```bash
-git clone https://github.com/caprosoft/diretto
-cd diretto
-cp .env.example .env   # edita DB_PASSWORD
-docker compose up -d
-```
-
-Apri http://localhost:3000
-
-## Licenza
-
-GNU Affero General Public License v3.0 — vedi [LICENSE](LICENSE)
-
 ---
 
 ## Sviluppo locale
