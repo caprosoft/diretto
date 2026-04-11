@@ -18,7 +18,7 @@ Solo annunci pubblicati direttamente dalle aziende sul loro sito.
 ## Avvio rapido (self-hosting)
 
 ```bash
-git clone https://github.com/TUO_USERNAME/diretto
+git clone https://github.com/caprosoft/diretto
 cd diretto
 cp .env.example .env   # edita DB_PASSWORD
 docker compose up -d

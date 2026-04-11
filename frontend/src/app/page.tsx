@@ -779,7 +779,7 @@ export default function Home() {
 
           <div style={{ marginTop: 24, fontSize: 12, color: "var(--muted)",
             fontFamily: "var(--mono)", lineHeight: 1.8 }}>
-            <a href="https://github.com/TUO_USERNAME/diretto"
+            <a href="https://github.com/caprosoft/diretto"
               target="_blank" rel="noopener noreferrer"
               style={{ color: "var(--accent)" }}>
               Codice sorgente su GitHub
