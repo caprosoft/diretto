@@ -72,3 +72,26 @@ docker compose up --build -d
 # Stato dei servizi
 docker compose ps
 ```
+
+---
+
+## Trasparenza delle fonti
+
+Diretto non crea né ospita annunci di lavoro propri.
+Ogni annuncio è scansionato direttamente dal sito ufficiale dell'azienda.
+
+La lista completa delle aziende indicizzate è pubblica e versionata nel repo:
+
+👉 [`data/seeds/companies.yaml`](data/seeds/companies.yaml)
+
+Per ogni annuncio mostrato nel frontend è sempre visibile:
+- il **dominio sorgente** (es. `careers.basecamp.com`)
+- il **link diretto** all'annuncio originale sull'azienda
+
+### Aggiungere un'azienda
+
+Se vuoi proporre una nuova azienda da indicizzare, apri una Pull Request
+che modifica `data/seeds/companies.yaml` seguendo il formato esistente.
+
+Criteri di accettazione: deve essere un'azienda diretta (non un'agenzia),
+con una pagina careers propria e attiva.
