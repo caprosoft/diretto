@@ -1,34 +1,27 @@
-"""
-Router /api/jobs
-GNU AGPL-3.0
-"""
-
 from fastapi import APIRouter, HTTPException, Query
 
-from ..database import get_pool
-from ..models import JobDetail, JobsResponse
-from ..search import PER_PAGE_DEFAULT, build_search_query
+from database import get_pool
+from models import JobDetail, JobsResponse
+from search import PER_PAGE_DEFAULT, build_search_query
 
 router = APIRouter()
 
 
 @router.get("/jobs", response_model=JobsResponse, summary="Cerca annunci")
 async def list_jobs(
-    q: str | None = Query(None, description="Ricerca full-text"),
-    location: str | None = Query(None, description="Filtra per città (es. Milano)"),
-    remote: bool | None = Query(None, description="Solo remote"),
-    job_type: str | None = Query(None, description="full-time | part-time | contract"),
-    tag: str | None = Query(None, description="Filtra per tag tecnologia"),
-    page: int = Query(1, ge=1, description="Numero pagina"),
-    per_page: int = Query(PER_PAGE_DEFAULT, ge=1, le=50, description="Risultati per pagina"),
+    q: str | None = Query(None),
+    location: str | None = Query(None),
+    remote: bool | None = Query(None),
+    job_type: str | None = Query(None),
+    tag: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(PER_PAGE_DEFAULT, ge=1, le=50),
 ):
     pool = await get_pool()
-
     count_sql, count_args, results_sql, results_args = build_search_query(
         q=q, location=location, remote=remote,
         job_type=job_type, tag=tag, page=page, per_page=per_page,
     )
-
     async with pool.acquire() as conn:
         total = await conn.fetchval(count_sql, *count_args)
         rows = await conn.fetch(results_sql, *results_args)
@@ -40,7 +33,6 @@ async def list_jobs(
 @router.get("/jobs/{job_id}", response_model=JobDetail, summary="Dettaglio annuncio")
 async def get_job(job_id: int):
     pool = await get_pool()
-
     sql = """
         SELECT
             j.id, j.title,
@@ -55,11 +47,8 @@ async def get_job(job_id: int):
         WHERE j.id = $1 AND j.active = true
         GROUP BY j.id, c.id
     """
-
     async with pool.acquire() as conn:
         row = await conn.fetchrow(sql, job_id)
-
     if not row:
         raise HTTPException(status_code=404, detail="Annuncio non trovato")
-
     return JobDetail(**dict(row))

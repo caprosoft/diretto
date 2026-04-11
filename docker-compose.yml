@@ -14,13 +14,15 @@ services:
       test: ["CMD-SHELL", "pg_isready -U diretto"]
       interval: 10s
       retries: 5
+    ports:
+      - "5432:5432"   # esposto in locale per debug
 
   api:
     build: ./api
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://diretto:${DB_PASSWORD}@db/diretto
-      ALLOWED_ORIGINS: ${FRONTEND_URL:-http://localhost:3000}
+      ALLOWED_ORIGINS: ${FRONTEND_URL}
     ports:
       - "8000:8000"
     depends_on:
@@ -34,6 +36,9 @@ services:
       DATABASE_URL: postgresql://diretto:${DB_PASSWORD}@db/diretto
       CRAWL_INTERVAL_HOURS: ${CRAWL_INTERVAL_HOURS:-24}
       HEADLESS_ENABLED: ${HEADLESS_ENABLED:-false}
+      SEEDS_PATH: /app/data/seeds/companies.yaml
+    volumes:
+      - ./data:/app/data    # monta i seed dentro il container
     depends_on:
       db:
         condition: service_healthy
