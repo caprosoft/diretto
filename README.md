@@ -1,3 +1,5 @@
+> 🚧 Lavori in corso! Questo progetto è attualmente in fase alpha — alcune cose potrebbero rompersi, cambiare o scomparire.
+
 # Diretto
 
 > Cerca lavoro, non inserzionisti.
@@ -27,7 +29,3 @@ Apri http://localhost:3000
 ## Licenza
 
 GNU Affero General Public License v3.0 — vedi [LICENSE](LICENSE)
-
-## Sito ufficiale
-
-https://diretto.org
