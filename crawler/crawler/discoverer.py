@@ -1,9 +1,9 @@
 """
-Discoverer — trova i link ai singoli annunci partendo dalla careers page.
-Tre strategie: API JSON note (Greenhouse/Lever/Workable) → link discovery → fallback lista URL.
+Discoverer — trova URL annunci usando il tipo ATS dichiarato nel seed.
 GNU AGPL-3.0
 """
 
+import json
 import logging
 import re
 from urllib.parse import urljoin, urlparse
@@ -14,36 +14,34 @@ from .fetcher import PoliteFetcher
 
 log = logging.getLogger(__name__)
 
-# Pattern URL che suggeriscono un annuncio singolo (non una lista)
+# Pattern URL annunci singoli
 JOB_URL_PATTERNS = [
-    r"/jobs/\d+",
-    r"/careers/\w+-\w+",
-    r"/positions/",
-    r"/offerte/",
-    r"/lavora-con-noi/\w+",
-    r"/open-positions/\w+",
-    r"/job-openings/",
-    r"/posting/",
-    r"/apply/",
+    r"/jobs/[\w-]+",
+    r"/careers/[\w-]+",
+    r"/positions/[\w-]+",
+    r"/opening/[\w-]+",
+    r"/role/[\w-]+",
+    r"/offerte/[\w-]+",
+    r"/posizione/[\w-]+",
+    r"/apply/[\w-]+",
 ]
 
-# Pattern URL da ignorare (pagine generiche, non annunci)
-IGNORE_PATTERNS = [
-    r"\.(pdf|doc|docx|png|jpg|jpeg|gif|svg|zip)$",
-    r"/tag/",
-    r"/category/",
-    r"/page/\d+",
-    r"#",
-    r"mailto:",
-    r"javascript:",
+# Pattern URL da ignorare sempre
+IGNORE_URL_PATTERNS = [
+    r"\.(pdf|doc|docx|png|jpg|jpeg|gif|svg|zip)(\?|$)",
+    r"/blog/", r"/news/", r"/press/", r"/about", r"/contact",
+    r"/pricing", r"/download", r"/install", r"/support",
+    r"/cookie", r"/privacy", r"/terms", r"/legal",
+    r"/login", r"/signup", r"/register",
+    r"/product", r"/features", r"/solutions",
+    r"#", r"mailto:", r"javascript:",
 ]
 
-# ── Adattatori ATS noti ───────────────────────────────────────────────────────
 
-async def _try_greenhouse(company_slug: str, fetcher: PoliteFetcher) -> list[str]:
-    """Greenhouse: API pubblica, nessun auth richiesto."""
-    url = f"https://boards-api.greenhouse.io/v1/boards/{company_slug}/jobs"
-    import json
+# ── Adattatori ATS ────────────────────────────────────────────────────────────
+
+async def _fetch_greenhouse(slug: str, fetcher: PoliteFetcher) -> list[str]:
+    url = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
     html = await fetcher.fetch_text(url)
     if not html:
         return []
@@ -54,10 +52,8 @@ async def _try_greenhouse(company_slug: str, fetcher: PoliteFetcher) -> list[str
         return []
 
 
-async def _try_lever(company_slug: str, fetcher: PoliteFetcher) -> list[str]:
-    """Lever: API pubblica."""
-    url = f"https://api.lever.co/v0/postings/{company_slug}?mode=json"
-    import json
+async def _fetch_lever(slug: str, fetcher: PoliteFetcher) -> list[str]:
+    url = f"https://api.lever.co/v0/postings/{slug}?mode=json"
     html = await fetcher.fetch_text(url)
     if not html:
         return []
@@ -68,86 +64,90 @@ async def _try_lever(company_slug: str, fetcher: PoliteFetcher) -> list[str]:
         return []
 
 
-async def _try_workable(company_slug: str, fetcher: PoliteFetcher) -> list[str]:
-    """Workable: endpoint pubblico dei posting."""
-    url = f"https://apply.workable.com/api/v1/widget/accounts/{company_slug}/jobs"
-    import json
+async def _fetch_workable(slug: str, fetcher: PoliteFetcher) -> list[str]:
+    url = f"https://apply.workable.com/api/v1/widget/accounts/{slug}/jobs"
     html = await fetcher.fetch_text(url)
     if not html:
         return []
     try:
         data = json.loads(html)
-        jobs = data.get("results", [])
-        base = f"https://apply.workable.com/{company_slug}/j/"
-        return [base + j["shortcode"] for j in jobs if "shortcode" in j]
+        base = f"https://apply.workable.com/{slug}/j/"
+        return [base + j["shortcode"] for j in data.get("results", []) if "shortcode" in j]
     except Exception:
         return []
 
 
-# ── Rilevamento automatico ATS ────────────────────────────────────────────────
+async def _fetch_ashby(slug: str, fetcher: PoliteFetcher) -> list[str]:
+    url = f"https://api.ashbyhq.com/posting-api/job-board/{slug}"
+    html = await fetcher.fetch_text(url)
+    if not html:
+        return []
+    try:
+        data = json.loads(html)
+        return [j["jobUrl"] for j in data.get("jobs", []) if "jobUrl" in j]
+    except Exception:
+        return []
 
-ATS_SIGNALS = {
-    "greenhouse.io": "greenhouse",
-    "boards.greenhouse.io": "greenhouse",
-    "lever.co": "lever",
-    "workable.com": "workable",
-    "apply.workable.com": "workable",
+
+async def _fetch_teamtailor(slug: str, fetcher: PoliteFetcher) -> list[str]:
+    url = f"https://{slug}.teamtailor.com/jobs.json"
+    html = await fetcher.fetch_text(url)
+    if not html:
+        # fallback: scraping pagina careers
+        html = await fetcher.fetch_text(f"https://{slug}.teamtailor.com/jobs")
+        if not html:
+            return []
+        return _extract_links_matching(html, f"https://{slug}.teamtailor.com")
+    try:
+        data = json.loads(html)
+        jobs = data if isinstance(data, list) else data.get("jobs", [])
+        urls = []
+        for j in jobs:
+            u = (j.get("links") or {}).get("careersite-job-url") or j.get("url")
+            if u:
+                urls.append(u)
+        return urls
+    except Exception:
+        return []
+
+
+ATS_FETCHERS = {
+    "greenhouse": _fetch_greenhouse,
+    "lever":      _fetch_lever,
+    "workable":   _fetch_workable,
+    "ashby":      _fetch_ashby,
+    "teamtailor": _fetch_teamtailor,
 }
 
 
-def _detect_ats(html: str, careers_url: str) -> tuple[str | None, str | None]:
-    """
-    Rileva se il sito usa un ATS noto guardando link e iframe.
-    Ritorna (ats_name, company_slug) o (None, None).
-    """
-    soup = BeautifulSoup(html, "lxml")
-    all_links = [a.get("href", "") for a in soup.find_all("a", href=True)]
-    all_links += [i.get("src", "") for i in soup.find_all("iframe", src=True)]
+# ── Link discovery (fallback per siti statici) ────────────────────────────────
 
-    for link in all_links:
-        for signal, ats in ATS_SIGNALS.items():
-            if signal in link:
-                # Estrae lo slug dall'URL
-                # es: https://boards.greenhouse.io/basecamp → "basecamp"
-                parts = [p for p in urlparse(link).path.split("/") if p]
-                slug = parts[0] if parts else None
-                if slug:
-                    log.debug(f"ATS rilevato: {ats} (slug: {slug})")
-                    return ats, slug
-
-    return None, None
-
-
-# ── Link discovery (siti statici) ─────────────────────────────────────────────
-
-def _looks_like_job_url(url: str) -> bool:
-    """Euristica: l'URL sembra un annuncio singolo?"""
-    if any(re.search(p, url, re.IGNORECASE) for p in IGNORE_PATTERNS):
+def _is_valid_url(url: str, base_domain: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.netloc and parsed.netloc != base_domain:
         return False
+    if any(re.search(p, url, re.IGNORECASE) for p in IGNORE_URL_PATTERNS):
+        return False
+    return True
+
+
+def _looks_like_job(url: str) -> bool:
     return any(re.search(p, url, re.IGNORECASE) for p in JOB_URL_PATTERNS)
 
 
-def _extract_links(html: str, base_url: str) -> list[str]:
-    """Estrae tutti i link della pagina, assoluti, de-duplicati."""
+def _extract_links_matching(html: str, base_url: str) -> list[str]:
     soup = BeautifulSoup(html, "lxml")
+    base_domain = urlparse(base_url).netloc
     seen = set()
     links = []
-    base_domain = urlparse(base_url).netloc
-
     for a in soup.find_all("a", href=True):
-        href = a["href"].strip()
-        absolute = urljoin(base_url, href)
-        parsed = urlparse(absolute)
-
-        # Solo link dello stesso dominio
-        if parsed.netloc != base_domain:
+        absolute = urljoin(base_url, a["href"].strip())
+        clean = urlparse(absolute)._replace(fragment="").geturl()
+        if clean in seen:
             continue
-        # Normalizza rimuovendo fragment
-        clean = parsed._replace(fragment="").geturl()
-        if clean not in seen:
-            seen.add(clean)
+        seen.add(clean)
+        if _is_valid_url(clean, base_domain) and _looks_like_job(clean):
             links.append(clean)
-
     return links
 
 
@@ -156,52 +156,30 @@ def _extract_links(html: str, base_url: str) -> list[str]:
 async def discover_job_urls(
     careers_url: str,
     fetcher: PoliteFetcher,
+    company_type: str = "static",
     company_slug: str = "",
 ) -> list[str]:
     """
-    Trova tutti gli URL di annunci singoli partendo dalla careers page.
-    Prova in ordine:
-      1. API ATS note (Greenhouse, Lever, Workable)
-      2. Link discovery sulla pagina statica
-    Ritorna lista di URL de-duplicati.
+    Trova URL annunci usando il tipo dichiarato nel seed.
+    Se il tipo è un ATS noto, usa la sua API diretta.
+    Altrimenti fa link discovery statico.
     """
-    log.info(f"Discoverer avviato: {careers_url}")
+    log.info(f"Discoverer [{company_type}]: {careers_url}")
 
-    # Step 1: scarica la careers page
+    # ATS con API diretta
+    if company_type in ATS_FETCHERS and company_slug:
+        urls = await ATS_FETCHERS[company_type](company_slug, fetcher)
+        if urls:
+            log.info(f"API {company_type}: {len(urls)} annunci trovati")
+            return urls
+        log.warning(f"API {company_type} vuota per {company_slug}, fallback statico")
+
+    # Fallback: link discovery statico
     html = await fetcher.fetch_text(careers_url)
     if not html:
         log.warning(f"Impossibile scaricare: {careers_url}")
         return []
 
-    # Step 2: rileva ATS
-    ats, slug = _detect_ats(html, careers_url)
-    slug = slug or company_slug  # usa quello passato se non rilevato
-
-    if ats and slug:
-        log.info(f"Provo API {ats} con slug '{slug}'")
-        urls = []
-        if ats == "greenhouse":
-            urls = await _try_greenhouse(slug, fetcher)
-        elif ats == "lever":
-            urls = await _try_lever(slug, fetcher)
-        elif ats == "workable":
-            urls = await _try_workable(slug, fetcher)
-
-        if urls:
-            log.info(f"API {ats}: trovati {len(urls)} annunci")
-            return urls
-        else:
-            log.debug(f"API {ats} non ha restituito risultati, fallback link discovery")
-
-    # Step 3: link discovery statico
-    all_links = _extract_links(html, careers_url)
-    job_links = [l for l in all_links if _looks_like_job_url(l)]
-
-    # Se link discovery non trova nulla, restituisce tutti i link interni
-    # (lasciamo al parser capire quali sono annunci veri)
-    if not job_links:
-        log.debug(f"Nessun link-annuncio rilevato, uso tutti i link interni ({len(all_links)})")
-        job_links = all_links[:50]  # limite di sicurezza
-
-    log.info(f"Link discovery: trovati {len(job_links)} URL candidati")
-    return job_links
+    urls = _extract_links_matching(html, careers_url)
+    log.info(f"Link discovery statico: {len(urls)} URL trovati")
+    return urls

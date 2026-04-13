@@ -1,6 +1,5 @@
 """
 Main — loop principale del crawler Diretto.
-Carica il seed, scansiona ogni azienda, salva i risultati.
 GNU AGPL-3.0
 """
 
@@ -32,78 +31,60 @@ def load_seeds(path: str) -> list[dict]:
 
 
 async def crawl_company(company: dict, fetcher: PoliteFetcher):
-    """Scansiona una singola azienda e salva gli annunci trovati."""
-    name = company["name"]
-    url = company["careers_url"]
-    slug = company.get("slug", "")
-    domain = urlparse(url).netloc
+    name         = company["name"]
+    url          = company["careers_url"]
+    company_type = company.get("type", "static")
+    slug         = company.get("slug", "")
+    domain       = urlparse(url).netloc
 
-    log.info(f"── Inizio crawl: {name} ({url})")
+    log.info(f"── {name} [{company_type}]")
 
-    # 1. Trova URL annunci
-    job_urls = await discover_job_urls(url, fetcher, slug)
+    job_urls = await discover_job_urls(url, fetcher, company_type, slug)
     if not job_urls:
-        log.warning(f"Nessun annuncio trovato per {name}")
+        log.warning(f"Nessun annuncio trovato: {name}")
         return
 
-    # 2. Scarica e analizza ogni annuncio
     saved = 0
     skipped = 0
-
     conn = await get_connection()
     try:
         for job_url in job_urls:
             html = await fetcher.fetch_text(job_url)
             if not html:
                 continue
-
             job = parse_job(html, job_url, company_name=name)
             if not job:
                 continue
-
             skip, reason = should_skip(job)
             if skip:
-                log.debug(f"Skip [{reason}]: {job_url}")
+                log.debug(f"Skip [{reason}]: {job.title!r}")
                 skipped += 1
                 continue
-
             result = await save_job(conn, job)
             if result:
                 saved += 1
-
         await mark_company_crawled(conn, domain)
     finally:
         await conn.close()
 
-    log.info(f"── Fine crawl {name}: {saved} salvati, {skipped} scartati")
+    log.info(f"── Fine {name}: {saved} salvati, {skipped} scartati")
 
 
 async def crawl_all():
-    """Scansiona tutte le aziende nel seed."""
     companies = load_seeds(SEEDS_PATH)
-    log.info(f"Seed caricato: {len(companies)} aziende")
-
+    log.info(f"Seed: {len(companies)} aziende")
     async with PoliteFetcher() as fetcher:
         for company in companies:
             try:
                 await crawl_company(company, fetcher)
             except Exception as e:
-                log.error(f"Errore su {company.get('name', '?')}: {e}", exc_info=True)
-                # Mai fermare il loop per un singolo errore
+                log.error(f"Errore {company.get('name')}: {e}", exc_info=True)
 
 
 async def run_loop():
-    """Loop pianificato: crawl ogni N ore (da env CRAWL_INTERVAL_HOURS)."""
-    interval_hours = int(os.environ.get("CRAWL_INTERVAL_HOURS", "24"))
-    interval_seconds = interval_hours * 3600
-
-    log.info(f"Crawler avviato — intervallo: {interval_hours}h")
-
+    interval = int(os.environ.get("CRAWL_INTERVAL_HOURS", "24")) * 3600
+    log.info(f"Crawler avviato — intervallo: {interval//3600}h")
     while True:
         await crawl_all()
-        log.info(f"Prossimo crawl tra {interval_hours}h")
-        await asyncio.sleep(interval_seconds)
-
-
-if __name__ == "__main__":
-    asyncio.run(run_loop())
+        log.info(f"Prossimo crawl tra {interval//3600}h")
+        await asyncio.sleep(interval)
