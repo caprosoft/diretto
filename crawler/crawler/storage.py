@@ -21,10 +21,6 @@ async def get_connection() -> asyncpg.Connection:
 
 
 async def ensure_company(conn: asyncpg.Connection, job: JobPosting) -> int:
-    """
-    Inserisce l'azienda se non esiste già (upsert per domain).
-    Ritorna l'id dell'azienda.
-    """
     row = await conn.fetchrow(
         """
         INSERT INTO companies (name, domain, careers_url)
@@ -32,32 +28,31 @@ async def ensure_company(conn: asyncpg.Connection, job: JobPosting) -> int:
         ON CONFLICT (domain) DO UPDATE SET name = EXCLUDED.name
         RETURNING id
         """,
-        job.company,
-        job.source_domain,
-        job.url,
+        job.company, job.source_domain, job.url,
     )
     return row["id"]
 
 
-async def job_exists(conn: asyncpg.Connection, url: str, html_hash: str) -> bool:
-    """True se l'annuncio è già presente (per URL o per hash HTML)."""
+async def job_exists(conn: asyncpg.Connection, url: str, html_hash: str, title: str, company_id: int) -> bool:
+    """Controlla duplicati per URL, hash HTML, oppure stesso titolo+azienda."""
     row = await conn.fetchrow(
-        "SELECT id FROM job_postings WHERE url = $1 OR html_hash = $2",
-        url,
-        html_hash,
+        """
+        SELECT id FROM job_postings
+        WHERE url = $1
+           OR html_hash = $2
+           OR (lower(title) = lower($3) AND company_id = $4)
+        """,
+        url, html_hash, title, company_id,
     )
     return row is not None
 
 
 async def save_job(conn: asyncpg.Connection, job: JobPosting) -> int | None:
-    """
-    Salva un JobPosting. Ritorna l'id del record inserito o None se duplicato.
-    """
-    if await job_exists(conn, job.url, job.html_hash):
-        log.debug(f"Duplicato, skip: {job.url}")
-        return None
-
     company_id = await ensure_company(conn, job)
+
+    if await job_exists(conn, job.url, job.html_hash, job.title, company_id):
+        log.debug(f"Duplicato, skip: [{job.title}] {job.url}")
+        return None
 
     row = await conn.fetchrow(
         """
@@ -75,20 +70,10 @@ async def save_job(conn: asyncpg.Connection, job: JobPosting) -> int | None:
         ON CONFLICT (url) DO NOTHING
         RETURNING id
         """,
-        company_id,
-        job.title,
-        job.location,
-        job.remote,
-        job.job_type,
-        job.description,
-        job.salary_min,
-        job.salary_max,
-        job.currency,
-        job.url,
-        job.source_domain,
-        job.html_hash,
-        job.posted_at,
-        job.expires_at,
+        company_id, job.title, job.location, job.remote, job.job_type,
+        job.description, job.salary_min, job.salary_max, job.currency,
+        job.url, job.source_domain, job.html_hash,
+        job.posted_at, job.expires_at,
     )
 
     if not row:
@@ -96,7 +81,6 @@ async def save_job(conn: asyncpg.Connection, job: JobPosting) -> int | None:
 
     job_id = row["id"]
 
-    # Salva i tag
     if job.tags:
         await conn.executemany(
             "INSERT INTO job_tags (job_id, tag) VALUES ($1, $2) ON CONFLICT DO NOTHING",
@@ -108,8 +92,6 @@ async def save_job(conn: asyncpg.Connection, job: JobPosting) -> int | None:
 
 
 async def mark_company_crawled(conn: asyncpg.Connection, domain: str):
-    """Aggiorna il timestamp dell'ultima scansione per un'azienda."""
     await conn.execute(
-        "UPDATE companies SET last_crawled_at = NOW() WHERE domain = $1",
-        domain,
+        "UPDATE companies SET last_crawled_at = NOW() WHERE domain = $1", domain,
     )

@@ -1,7 +1,3 @@
-# Lista aziende dirette indicizzate da Diretto
-# Per aggiungere un'azienda: apri una Pull Request
-# Criteri: deve essere l'azienda stessa, non un'agenzia
-
 - name: Basecamp
   careers_url: https://basecamp.com/jobs
   type: static
@@ -10,7 +6,7 @@
   tags: [software, remote, saas]
 
 - name: Proton AG
-  careers_url: https://proton.me/careers
+  careers_url: https://proton.me/careers#open-positions
   type: static
   locale: en
   country: CH
