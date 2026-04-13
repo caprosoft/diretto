@@ -4,6 +4,8 @@
 
 > Cerca lavoro, non inserzionisti.
 
+![Screenshot](./assets/index.png)
+
 Piattaforma di ricerca lavoro **privacy-first**, **open source**, **senza agenzie**.
 Solo annunci pubblicati direttamente dalle aziende sul loro sito.
 
